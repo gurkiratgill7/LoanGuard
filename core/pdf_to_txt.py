@@ -1,6 +1,6 @@
 import fitz  #PyMuPDF
 import re
-from typing import Optional
+from typing import Optional, List
 
 def extract_text_from_pdf(pdf_bytes: bytes) -> Optional[str]:
     try:
@@ -24,12 +24,24 @@ def text_to_paragraphs(text: Optional[str]) -> List[str]:
     if not text:
         return []
 
-    # Use regex to split the text by one or more blank lines.
-    # This is more robust than text.split('\n\n').
-    # The regex pattern looks for two newlines separated by any amount of whitespace.
-    raw_paragraphs = re.split(r'\n\s*\n', text)
-    
-    # Clean up the results, removing any empty strings that result from the split.
-    cleaned_paragraphs = [p.strip() for p in raw_paragraphs if p.strip()]
-    
-    return cleaned_paragraphs
+    # Split at lines that start with a Roman numeral (I, II, III, IV, etc.) followed by a period and a space
+    # Roman numerals: I, II, III, IV, V, VI, VII, VIII, IX, X, ...
+    # Regex: ^[IVXLCDM]+\.\s
+    # Use re.MULTILINE to match at the start of lines
+    raw_paragraphs = re.split(r'(?m)^([IVXLCDM]+\.)\s', text)
+
+    # The split will keep the delimiters (the Roman numerals) as separate elements, so we need to recombine them
+    paragraphs = []
+    i = 1 if raw_paragraphs and raw_paragraphs[0].strip() == '' else 0
+    while i < len(raw_paragraphs):
+        if i + 1 < len(raw_paragraphs):
+            para = f"{raw_paragraphs[i]}. {raw_paragraphs[i+1]}".strip()
+            paragraphs.append(para)
+            i += 2
+        else:
+            # If there's a trailing chunk without a numeral
+            if raw_paragraphs[i].strip():
+                paragraphs.append(raw_paragraphs[i].strip())
+            i += 1
+
+    return paragraphs
