@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Test script for pdf_to_txt.py module.
 Tests both extract_text_from_pdf and text_to_paragraphs functions
@@ -12,7 +11,7 @@ from pathlib import Path
 # Add the core module to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'core'))
 
-from pdf_to_txt import extract_text_from_pdf, text_to_paragraphs
+from pdf_to_txt import extract_text_from_pdf, text_to_sections
 
 
 def test_pdf_file(pdf_path: str):
@@ -39,7 +38,7 @@ def test_pdf_file(pdf_path: str):
         
         # Test text_to_paragraphs
         print("\n2. Testing text_to_paragraphs()...")
-        paragraphs = text_to_paragraphs(extracted_text)
+        paragraphs = text_to_sections(extracted_text)
         
         print(f"   ✅ Successfully split into {len(paragraphs)} paragraphs\n")
         
