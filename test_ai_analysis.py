@@ -30,9 +30,35 @@ def main():
         sys.exit(1)
 
     pdf_path = sys.argv[1]
-    # ... and so on ...
 
-# ... The rest of your script is unchanged ...
+
+    if not os.path.exists(pdf_path):
+        print(f"File not found: {pdf_path}")
+        sys.exit(1)
+
+    with open(pdf_path, 'rb') as f:
+        pdf_bytes = f.read()
+
+    text = extract_text_from_pdf(pdf_bytes)
+    if not text:
+        print("Failed to extract text from PDF.")
+        sys.exit(1)
+
+    sections = text_to_sections(text)
+    print(f"Extracted {len(sections)} sections from PDF")
+    
+    # Run AI analysis
+    ai_risk_score, ai_flags = run_ai_analysis(sections)
+    
+    print(f"\nAI Analysis Results:")
+    print(f"AI Risk Score: {ai_risk_score}")
+    print(f"\nAI Flags ({len(ai_flags)} found):")
+    for i, flag in enumerate(ai_flags, 1):
+        print(f"\n[Flag {i}]")
+        print(f"Type: {flag['type']}")
+        print(f"Title: {flag['title']}")
+        print(f"Explanation: {flag['explanation']}")
+        print(f"Context: {flag['context'][:100]}...")
 
 if __name__ == "__main__":
     main()
