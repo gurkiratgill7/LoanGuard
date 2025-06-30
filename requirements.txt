@@ -1,4 +1,12 @@
+# Core app framework
 streamlit
-requests
+
+# PDF parsing
 PyMuPDF
-toml
+
+# AI and Machine Learning (for local model)
+transformers
+torch
+
+# sentencepiece is often a required dependency for models like BART
+sentencepiece

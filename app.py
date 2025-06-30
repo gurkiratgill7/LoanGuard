@@ -33,7 +33,7 @@ with st.sidebar:
         1.  **Rule-Based Engine:** Scans for clear red flags like high APRs and predatory keywords.
         2.  **AI Analysis:** Uses a sophisticated NLP model to detect nuanced and contextual risks that rules might miss.
         
-        This tool is a proof-of-concept for a hackathon and is for educational purposes only.
+        This tool is a proof-of-concept for a hackathon and is for educational purposes only. Do not use it for real financial decisions.
         """
     )
     st.warning(
@@ -77,7 +77,10 @@ if uploaded_file is not None:
             # Step 2: Run both analysis engines
             rule_score, rule_flags = run_rules_engine(sections, full_text)
             ai_score, ai_flags = run_ai_analysis(sections)
-
+            st.write(f"DEBUG - Rule Score: {rule_score}, Rule Flags: {len(rule_flags)}")
+            st.write(f"DEBUG - AI Score: {ai_score}, AI Flags: {len(ai_flags)}")
+            
+            
             # Step 3: Combine the results
             total_score = rule_score + ai_score
             all_flags = rule_flags + ai_flags
