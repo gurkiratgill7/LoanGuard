@@ -81,9 +81,28 @@ if uploaded_file is not None:
             st.write(f"DEBUG - Rule Score: {rule_score}, Rule Flags: {len(rule_flags)}")
             st.write(f"DEBUG - AI Score: {ai_score}, AI Flags: {len(ai_flags)}")
 
+            # Check if AI analysis failed completely (no API responses)
+            ai_analysis_failed = (ai_score == 0 and len(ai_flags) == 0)
+            
+            if ai_analysis_failed:
+                # Double the rule score to compensate for missing AI analysis
+                adjusted_rule_score = rule_score * 2
+                total_score = adjusted_rule_score
+                all_flags = rule_flags
+                
+                # Add warning about AI analysis failure
+                st.warning(
+                    "⚠️ **AI analysis is unavailable due to API limits being reached.** "
+                    "The following score is based solely on rule-based analysis and has been "
+                    "doubled to accommodate the lack of AI analysis.", 
+                    icon="🤖"
+                )
+            else:
+                # Normal operation - combine both scores
+                total_score = rule_score + ai_score
+                all_flags = rule_flags + ai_flags
+
             # Step 3: Combine the results
-            total_score = rule_score + ai_score
-            all_flags = rule_flags + ai_flags
 
         # --- DISPLAY RESULTS ---
         st.header("Analysis Report")

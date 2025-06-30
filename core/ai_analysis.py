@@ -83,17 +83,23 @@ def _query_hf_api(text_to_classify: str) -> Dict[str, Any]:
 def run_ai_analysis(sections: List[str], max_sections: int = 10) -> Tuple[int, List[Dict[str, Any]]]:
     """
     Analyzes document sections using the AI model and generates a risk score.
+    Returns a tuple of (risk_score, flags). If AI analysis fails completely,
+    returns (0, []) to indicate no AI analysis was performed.
     """
     total_risk_score = 0
     all_flags = []
+    successful_api_calls = 0
+    total_sections_processed = 0
 
     for section_text in sections[:max_sections]:
         if len(section_text.split()) < 5:
             continue
-
+        
+        total_sections_processed += 1
         ai_result = _query_hf_api(section_text)
 
         if ai_result and 'labels' in ai_result and 'scores' in ai_result:
+            successful_api_calls += 1
             top_label = ai_result['labels'][0]
             top_score = ai_result['scores'][0]
 
@@ -112,9 +118,14 @@ def run_ai_analysis(sections: List[str], max_sections: int = 10) -> Tuple[int, L
                     "title": f"AI Analysis: {concept_info['title']}",
                     "explanation": f"The AI model flagged this section as a potential '{top_label}' with {top_score:.0%} confidence.",
                     "context": section_text,
-                    "concept_id": concept_info['id'],  # ADDED THIS LINE
-                    "source": "ai"  # Identify the source
+                    "concept_id": concept_info['id'],
+                    "source": "ai"
                 }
                 all_flags.append(flag)
 
+    # If no API calls were successful, consider AI analysis failed
+    if successful_api_calls == 0 and total_sections_processed > 0:
+        print("WARNING: AI analysis completely failed - no successful API calls")
+        return 0, []
+    
     return total_risk_score, all_flags
