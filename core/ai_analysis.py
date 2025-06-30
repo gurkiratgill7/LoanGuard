@@ -1,28 +1,13 @@
-# core/ai_analysis.py
-
 import streamlit as st
+import requests
+import os
 from typing import List, Dict, Tuple, Any
-from transformers import pipeline, Pipeline
 
 # ==============================================================================
-# --- AI CONFIGURATION AND MODEL LOADING (RUNS ONCE AT STARTUP) ---
+# --- AI CONFIGURATION ---
 # ==============================================================================
 
-# This decorator is the key to performance. It loads the model only once.
-@st.cache_resource
-def load_local_model() -> Pipeline | None:
-    """Load the classification model locally and cache it."""
-    try:
-        classifier = pipeline("zero-shot-classification", model="facebook/bart-large-mnli", device=-1)
-        print("INFO: Local zero-shot classification model loaded successfully.")
-        return classifier
-    except Exception as e:
-        # If model loading fails, show an error in the app.
-        st.error(f"Fatal Error: Failed to load local AI model. Please check logs. Error: {e}")
-        return None
-
-# Load the model into a global variable when the script is first executed.
-CLASSIFIER = load_local_model()
+MODEL_API_URL = "https://api-inference.huggingface.co/models/facebook/bart-large-mnli"
 
 # Your configurations remain the same.
 CANDIDATE_LABELS = [
@@ -54,71 +39,82 @@ LABEL_TO_CONCEPT_MAP = {
     "Clause requiring immediate payment or very short terms": {"title": "Very Short Repayment Term", "id": "SHORT_TERM"},
     "Clause waiving consumer rights or requiring arbitration": {"title": "Waiver of Consumer Rights", "id": "ARBITRATION"},
 }
-CONFIDENCE_THRESHOLD = 0.60
+
+CONFIDENCE_THRESHOLD = 0.25  # 25%
 
 # ==============================================================================
-# --- LOCAL MODEL QUERY FUNCTION ---
+# --- API HELPER FUNCTION ---
 # ==============================================================================
 
-def _query_local_model(text_to_classify: str) -> Dict[str, Any]:
-    """Uses the pre-loaded local model for classification."""
-    # Check if the global model loaded correctly at startup.
-    if CLASSIFIER is None:
-        return {}
-    
+#@st.cache_data
+def _query_hf_api(text_to_classify: str) -> Dict[str, Any]:
+    """
+    Sends text to the Hugging Face Inference API for zero-shot classification.
+
+    Args:
+        text_to_classify: The text (e.g., a document section) to be analyzed.
+
+    Returns:
+        A dictionary containing the API's response, or an empty dictionary on error.
+    """
+    api_token = None
     try:
-        # No need to load the model again, just use it.
-        result = CLASSIFIER(text_to_classify, CANDIDATE_LABELS)
-        return result
-    except Exception as e:
-        print(f"ERROR: Local model inference failed: {e}")
+        api_token = st.secrets["HF_TOKEN"]
+    except (AttributeError, KeyError):
+        api_token = os.environ.get("HF_TOKEN")
+    
+    if not api_token:
+        st.error("Hugging Face API token not found. Please set HF_TOKEN in secrets or environment.")
+        return {}
+    headers = {"Authorization": f"Bearer {api_token}"}
+    payload = {"inputs": text_to_classify, "parameters": {"candidate_labels": CANDIDATE_LABELS}}
+    try:
+        response = requests.post(MODEL_API_URL, headers=headers, json=payload, timeout=20)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        st.warning(f"AI analysis unavailable: {e}")
         return {}
 
 # ==============================================================================
-# --- MAIN AI ENGINE FUNCTION (Line-by-Line Analysis) ---
+# --- MAIN AI ENGINE FUNCTION ---
 # ==============================================================================
 
-def run_ai_analysis(sections: List[str], max_sections: int = 15) -> Tuple[int, List[Dict[str, Any]]]:
-    """Analyzes document sections line-by-line using the local AI model."""
+def run_ai_analysis(sections: List[str], max_sections: int = 10) -> Tuple[int, List[Dict[str, Any]]]:
+    """
+    Analyzes document sections using the AI model and generates a risk score.
+    """
     total_risk_score = 0
     all_flags = []
 
     for section_text in sections[:max_sections]:
-        lines = section_text.strip().split('\n')
-        if not lines: continue
-        
-        section_title = lines[0].strip()
-        content_lines = [line.strip() for line in lines[1:] if line.strip()]
-        
-        for line in content_lines:
-            if len(line.split()) < 4: continue # Skip very short, uninformative lines
-            
-            text_to_analyze = f"{section_title}: {line}"
-            ai_result = _query_local_model(text_to_analyze)
+        if len(section_text.split()) < 5:
+            continue
 
-            if ai_result and 'labels' in ai_result and 'scores' in ai_result:
-                # Take only the highest confidence prediction
-                top_label = ai_result['labels'][0]
-                top_score = ai_result['scores'][0]
+        ai_result = _query_hf_api(section_text)
+
+        if ai_result and 'labels' in ai_result and 'scores' in ai_result:
+            top_label = ai_result['labels'][0]
+            top_score = ai_result['scores'][0]
+
+            if top_label in PREDATORY_LABELS and top_score > CONFIDENCE_THRESHOLD:
                 
-                if top_label in PREDATORY_LABELS and top_score > CONFIDENCE_THRESHOLD:
-                    score_to_add = 10
-                    if top_score > 0.90: score_to_add = 25
-                    elif top_score > 0.80: score_to_add = 15
-                    
-                    total_risk_score += score_to_add
-                    concept_info = LABEL_TO_CONCEPT_MAP.get(top_label, {"title": "Potential Risk", "id": "AI_UNKNOWN_RISK"})
-                    
-                    flag = {
-                        "type": "warning",
-                        "title": f"AI Analysis: {concept_info['title']}",
-                        "explanation": f"The AI model flagged this clause as a potential '{top_label}' with {top_score:.0%} confidence.",
-                        "context": line,
-                        "section": section_title,
-                        "concept_id": concept_info['id'],
-                        "source": "ai",
-                        "score": score_to_add
-                    }
-                    all_flags.append(flag)
+                score_to_add = 10
+                if top_score > 0.90: score_to_add = 25
+                elif top_score > 0.80: score_to_add = 15
+                
+                total_risk_score += score_to_add
+
+                concept_info = LABEL_TO_CONCEPT_MAP.get(top_label, {"title": "Potential Risk", "id": "AI_UNKNOWN_RISK"})
+                
+                flag = {
+                    "type": "error" if top_score > 0.90 else "warning",
+                    "title": f"AI Analysis: {concept_info['title']}",
+                    "explanation": f"The AI model flagged this section as a potential '{top_label}' with {top_score:.0%} confidence.",
+                    "context": section_text,
+                    "concept_id": concept_info['id'],  # ADDED THIS LINE
+                    "source": "ai"  # Identify the source
+                }
+                all_flags.append(flag)
 
     return total_risk_score, all_flags
