@@ -23,7 +23,7 @@ st.set_page_config(
 # ==============================================================================
 
 with st.sidebar:
-    st.image("https://i.imgur.com/qgGYj2g.png", width=100) # Placeholder logo
+    st.image("assets/images/LoanGuard_Logo.png", width=170) # Local logo
     st.title("About LoanGuard")
     st.info(
         """
@@ -48,7 +48,7 @@ with st.sidebar:
 # --- MAIN PAGE UI ---
 # ==============================================================================
 
-st.title("🛡️ LoanGuard: Your AI-Powered Loan Agreement Analyzer")
+st.title("LoanGuard: Your AI-Powered Loan Agreement Analyzer")
 st.markdown("Upload a loan agreement in PDF format to scan it for predatory clauses and hidden risks.")
 
 # Create the file uploader widget
