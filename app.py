@@ -78,8 +78,6 @@ if uploaded_file is not None:
             rule_score, rule_flags = run_rules_engine(sections, full_text)
             ai_score, ai_flags = run_ai_analysis(sections)
 
-            st.write(f"DEBUG - Rule Score: {rule_score}, Rule Flags: {len(rule_flags)}")
-            st.write(f"DEBUG - AI Score: {ai_score}, AI Flags: {len(ai_flags)}")
 
             # Check if AI analysis failed completely (no API responses)
             ai_analysis_failed = (ai_score == 0 and len(ai_flags) == 0)
