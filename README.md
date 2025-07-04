@@ -2,8 +2,8 @@
 LoanGuard is an AI-powered tool designed to demystify complex financial documents and protect consumers from predatory lending practices. By uploading a loan agreement, users can receive an instant, easy-to-understand analysis that highlights potential risks, hidden fees, and consumer-unfriendly clauses.
 
 ✨ Live Demo
-You can access the live, deployed application here:
-[https://YOUR-STREAMLIT-APP-URL-HERE]
+You can access the live, deployed application here (note: may take a moment to boot up on first usage):
+https://ai-loanguard.streamlit.app/
 
 🎯 Project Overview
 
